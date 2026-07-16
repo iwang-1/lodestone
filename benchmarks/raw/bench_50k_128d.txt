@@ -1,0 +1,27 @@
+# lodestone benchmark — captured 20260716T005157Z
+# host: Intel(R) Xeon(R) Platinum 8488C, 48 vCPU
+# rustc: rustc 1.95.0 (59807616e 2026-04-14)
+# cmd: RUSTFLAGS=-C target-cpu=native lodestone-bench --n 50000 --dim 128 --queries 1000 --k 10
+
+lodestone-bench: n=50000 dim=128 queries=1000 k=10 backend=avx512
+# exact brute-force oracle: 971 QPS (parallel, full corpus scan)
+
+## HNSW (m=16)  recall@10 vs QPS
+| ef | recall@10 | QPS (1 core) |
+|---:|---:|---:|
+hnsw build: 10.0s for 50000 vectors (backend=avx512)
+| 16 | 0.8996 | 47335 |
+| 32 | 0.9759 | 31845 |
+| 64 | 0.9964 | 20946 |
+| 128 | 1.0000 | 13514 |
+| 256 | 1.0000 | 8898 |
+
+## IVF-PQ (nlist=256, m=32, 16x compression)  recall@10 vs QPS
+| nprobe | recall@10 | QPS (1 core) |
+|---:|---:|---:|
+ivfpq compression ratio: 16.0x
+| 1 | 0.4850 | 9797 |
+| 4 | 0.9409 | 6128 |
+| 8 | 0.9748 | 4110 |
+| 16 | 0.9747 | 2305 |
+| 32 | 0.9747 | 1229 |
