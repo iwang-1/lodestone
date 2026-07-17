@@ -45,30 +45,31 @@ Host: Intel Xeon Platinum 8488C (48 vCPU, AVX-512), Rust 1.95, single-core query
 timing. Corpus: 50,000 × 128-d seeded clustered vectors, 1,000 held-out queries,
 k=10. Full raw output: [`benchmarks/raw/bench_50k_128d.txt`](benchmarks/raw/bench_50k_128d.txt).
 
-![recall@10 vs single-core QPS for HNSW and IVF-PQ: HNSW holds 0.976 recall at ~31.7k QPS and reaches 1.0 at higher ef; IVF-PQ trades recall for 16x compression.](docs/benchmark.png)
+![recall@10 vs single-core QPS for HNSW and IVF-PQ: HNSW holds 0.976 recall at ~31.8k QPS and reaches 1.0 at higher ef; IVF-PQ trades recall for 16x compression.](docs/benchmark.png)
 
 ### HNSW (graph index) — recall@10 vs QPS
 
 | `ef` | recall@10 | QPS (1 core) |
 |---:|---:|---:|
-| 16  | 0.900 | 48,000 |
-| 32  | 0.976 | 31,700 |
-| 64  | 0.996 | 20,800 |
-| 128 | 1.000 | 13,500 |
-| 256 | 1.000 |  9,000 |
+| 16  | 0.8996 | 47,335 |
+| 32  | 0.9759 | 31,845 |
+| 64  | 0.9964 | 20,946 |
+| 128 | 1.0000 | 13,514 |
+| 256 | 1.0000 |  8,898 |
 
-The exact brute-force oracle sustains ~1,000 QPS scanning the full corpus in
+The exact brute-force oracle sustains ~970 QPS scanning the full corpus in
 parallel across 48 cores; HNSW reaches the same recall on **one** core at
-13–48k QPS.
+9–47k QPS.
 
 ### IVF-PQ (compressed index) — recall@10 vs QPS at 16x compression
 
 | `nprobe` | recall@10 | QPS (1 core) |
 |---:|---:|---:|
-| 1  | 0.485 | 10,300 |
-| 4  | 0.941 |  6,100 |
-| 8  | 0.975 |  4,100 |
-| 16 | 0.975 |  2,300 |
+| 1  | 0.4850 |  9,797 |
+| 4  | 0.9409 |  6,128 |
+| 8  | 0.9748 |  4,110 |
+| 16 | 0.9747 |  2,305 |
+| 32 | 0.9747 |  1,229 |
 
 Product quantization stores each vector as 32 bytes instead of 512 (**16x
 smaller**); the recall product quantization loses is recovered by exact
