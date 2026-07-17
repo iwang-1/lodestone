@@ -45,6 +45,8 @@ Host: Intel Xeon Platinum 8488C (48 vCPU, AVX-512), Rust 1.95, single-core query
 timing. Corpus: 50,000 × 128-d seeded clustered vectors, 1,000 held-out queries,
 k=10. Full raw output: [`benchmarks/raw/bench_50k_128d.txt`](benchmarks/raw/bench_50k_128d.txt).
 
+![recall@10 vs single-core QPS for HNSW and IVF-PQ: HNSW holds 0.976 recall at ~31.7k QPS and reaches 1.0 at higher ef; IVF-PQ trades recall for 16x compression.](docs/benchmark.png)
+
 ### HNSW (graph index) — recall@10 vs QPS
 
 | `ef` | recall@10 | QPS (1 core) |
