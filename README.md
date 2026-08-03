@@ -14,8 +14,9 @@ quantizer, k-means, and SIMD kernels are all in-tree.
 
 On 50,000 128-dimensional vectors (single core, one machine, no GPU):
 
-- **HNSW: 0.976 recall@10 at ~31,700 QPS**, reaching **1.000 recall@10** at
-  higher `ef` — a **30–48x** speedup over the exact scan at 90%+ recall.
+- **HNSW: 0.976 recall@10 at ~31,800 QPS** — about **33x** the exact
+  brute-force search at that recall, and **9–33x** across the 90%+ recall band,
+  reaching **1.000 recall@10** at higher `ef`.
 - **IVF-PQ: 0.975 recall@10 at 16x memory compression** (product quantization +
   exact re-ranking of the ADC shortlist).
 - **AVX-512 distance kernels** with runtime feature dispatch, differential-tested
