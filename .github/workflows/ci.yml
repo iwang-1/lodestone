@@ -19,3 +19,18 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Test
         run: cargo test --release
+
+      # Retracted-claim guard. The README once said "a 30-48x speedup over the
+      # exact scan at 90%+ recall". It was arithmetically false: 47,335/971 =
+      # 48.7x, but that point measures 0.8996 recall, BELOW the 90% the sentence
+      # asserted. The true >=0.90 HNSW band is 9.2x-32.8x. The claim had already
+      # syndicated to two other surfaces before anyone checked the arithmetic,
+      # which is why this is a gate and not a note.
+      - name: Retracted claims must not return
+        run: |
+          if grep -rniE '3[[:space:]]*0[[:space:]]*[-–—][[:space:]]*4[[:space:]]*8[[:space:]]*[x×]|30[[:space:]]*to[[:space:]]*48[[:space:]]*[x×]|31,?700' \
+               --include='*.md' --include='*.rs' --include='*.toml' . ; then
+            echo "::error::A retracted benchmark claim is back. See benchmarks/raw/bench_50k_128d.txt: the >=0.90 recall band is 9.2x-32.8x and the QPS figure is ~31,800."
+            exit 1
+          fi
+          echo "No retracted claims found."
