@@ -1,7 +1,5 @@
-//! Differential test: the AVX-512 distance kernels must agree with the
-//! portable scalar reference across many random vectors and every dimension
-//! near a 16-lane boundary (tail-handling is the classic SIMD bug). This is
-//! the guarantee that lets the fast path be trusted in the index.
+//! Differential test: the avx-512 distance kernels must agree with the portable scalar reference across
+//! many random vectors and every dimension near a 16-lane boundary (tail-handling is the classic SIMD bug).
 
 use lodestone::distance::{DistanceFn, Metric};
 use rand::Rng;
@@ -9,11 +7,6 @@ use rand::SeedableRng;
 use rand_pcg::Pcg64;
 
 /// Returns the worst error under a combined absolute+relative tolerance.
-/// Scalar accumulates sequentially; the AVX-512 path sums 16 lanes then does a
-/// tree reduction, so the two disagree in the last ULPs by floating-point
-/// non-associativity — not a logic bug. We therefore accept the pair when
-/// `|s - v| <= atol + rtol*|s|`, and report the worst normalized violation
-/// (0.0 means every pair was within tolerance).
 fn max_err(metric: Metric, dim: usize, trials: usize, rng: &mut Pcg64) -> f32 {
     let scalar = DistanceFn::scalar(metric);
     let simd = DistanceFn::new(metric);

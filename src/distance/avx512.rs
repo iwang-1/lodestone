@@ -1,9 +1,4 @@
-//! Hand-written AVX-512 distance kernels (`x86_64`).
-//!
-//! Each kernel processes 16 `f32` lanes per iteration with a fused
-//! multiply-add and handles the ragged tail with a masked load, so any
-//! dimension is exact — not just multiples of 16. Correctness is pinned to the
-//! scalar reference by the differential tests in `tests/`.
+//! Hand-written avx-512 distance kernels (`x86_64`).
 
 use super::Metric;
 use std::arch::x86_64::*;

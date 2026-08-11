@@ -1,9 +1,5 @@
-//! Distance kernels with runtime SIMD dispatch.
-//!
-//! Every metric ships a portable scalar reference and, on `x86_64`, a
-//! hand-written AVX-512 path selected once at construction via
-//! `is_x86_feature_detected!`. The scalar path is the correctness oracle the
-//! AVX-512 path is differential-tested against.
+//! Distance kernels with runtime SIMD dispatch. Every metric ships a portable scalar reference and, on
+//! `x86_64`, a hand-written avx-512 path selected once at construction via `is_x86_feature_detected!`.
 
 #[cfg(target_arch = "x86_64")]
 mod avx512;

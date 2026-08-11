@@ -1,9 +1,5 @@
-//! Recall measurement against the exact oracle.
-//!
-//! `recall@k` for a single query is `|approx_topk ∩ exact_topk| / k`. The
-//! reported recall is the mean over a query set. This is the standard
-//! ann-benchmarks definition and is self-verifying: the ground truth is the
-//! brute-force result on the same corpus, so the number cannot be inflated.
+//! Recall measurement against the exact oracle. `recall@k` for a single query is `|approx_topk ∩
+//! exact_topk| / k`.
 
 use std::collections::HashSet;
 

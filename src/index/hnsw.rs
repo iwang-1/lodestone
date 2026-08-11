@@ -1,10 +1,4 @@
 //! HNSW (Hierarchical Navigable Small World) graph index.
-//!
-//! Implements Malkov & Yashunin (2018): a multi-layer proximity graph with
-//! exponentially-decaying level assignment, greedy descent through the upper
-//! layers, and a beam search (`ef`) on layer 0. Insertion uses the paper's
-//! neighbor-selection heuristic (Algorithm 4) rather than plain nearest-M,
-//! which preserves recall on clustered data.
 
 use crate::distance::{DistanceFn, Metric};
 use rand::Rng;
@@ -156,9 +150,8 @@ impl Hnsw {
 
         let level = self.random_level();
         self.node_levels.push(level);
-        // Any brand-new upper layer must be backfilled with an (empty) slot for
-        // every already-inserted node, or a later descent that indexes
-        // links[layer][old_node] goes out of bounds.
+        // Any brand-new upper layer must be backfilled with an (empty) slot for every already-inserted
+        // node, or a later descent that indexes links[layer][old_node] goes out of bounds.
         while self.links.len() <= level {
             self.links.push(vec![Vec::new(); id as usize]);
         }
@@ -289,9 +282,8 @@ impl Hnsw {
         out
     }
 
-    /// Neighbor-selection heuristic (Malkov & Yashunin Algorithm 4): keep a
-    /// candidate only if it is closer to the query than to any already-kept
-    /// neighbor, which prunes redundant links within the same cluster.
+    /// Neighbor-selection heuristic (Malkov & Yashunin Algorithm 4): keep a candidate only if it is closer
+    /// to the query than to any already-kept neighbor, which prunes redundant links within the same cluster.
     fn select_neighbors(&self, _query: &[f32], candidates: &[Candidate], m: usize) -> Vec<u32> {
         let mut result: Vec<u32> = Vec::with_capacity(m);
         // candidates are sorted ascending by distance to the query.

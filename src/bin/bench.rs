@@ -1,9 +1,5 @@
-//! Benchmark harness: builds each index over a seeded clustered corpus and
-//! sweeps the recall/latency knob (ef for HNSW, nprobe for IVF-PQ), printing a
-//! recall@k-vs-QPS table plus the exact-oracle backend in use. Single-threaded
-//! query timing so QPS reflects one core; build uses all cores.
-//!
-//! Usage: lodestone-bench [--n N] [--dim D] [--queries Q] [--k K]
+//! Benchmark harness: builds each index over a seeded clustered corpus and sweeps the recall/latency knob
+//! (ef for HNSW, nprobe for ivf-pq), printing a recall@k-vs-QPS table plus the exact-oracle backend in use.
 
 use lodestone::dataset;
 use lodestone::distance::DistanceFn;

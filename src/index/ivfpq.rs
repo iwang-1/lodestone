@@ -1,7 +1,4 @@
-//! IVF-PQ index: an inverted file over a coarse k-means quantizer, with each
-//! posting list storing PQ codes. Query scans the `nprobe` nearest coarse
-//! cells and scores their codes via ADC, giving large memory savings (m bytes
-//! per vector instead of 4*dim) at a tunable recall cost.
+//! Ivf-pq index: an inverted file over a coarse k-means quantizer, with each posting list storing PQ codes.
 
 use crate::distance::{DistanceFn, Metric};
 use crate::quant::pq::ProductQuantizer;
@@ -19,9 +16,8 @@ pub struct IvfPq {
     pq: ProductQuantizer,
     /// Posting lists: `lists[cell]` = (vector id, pq codes).
     lists: Vec<Vec<(u32, Vec<u8>)>>,
-    /// Full-precision vectors kept for optional exact re-ranking of the ADC
-    /// shortlist (the standard IVFPQ+R recall recovery). Row `id` is
-    /// `raw[id*dim..]`.
+    /// Full-precision vectors kept for optional exact re-ranking of the ADC shortlist (the standard ivfpq+R
+    /// recall recovery).
     raw: Vec<f32>,
     /// Multiplier on k for the ADC shortlist before exact re-ranking.
     rerank_factor: usize,
@@ -120,11 +116,7 @@ impl IvfPq {
         self.n += 1;
     }
 
-    /// Searches the `nprobe` nearest cells. ADC produces a shortlist of
-    /// `rerank_factor * k` candidates cheaply; those are then re-scored with
-    /// exact full-precision distances so the returned top-k recovers the recall
-    /// that raw product quantization loses. `rerank_factor = 0` returns the
-    /// pure-ADC ranking.
+    /// Searches the `nprobe` nearest cells.
     pub fn search(&self, query: &[f32], k: usize, nprobe: usize) -> Vec<(u32, f32)> {
         assert_eq!(query.len(), self.dim);
         // Rank coarse cells by distance to the query.

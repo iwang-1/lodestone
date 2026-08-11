@@ -1,11 +1,4 @@
 //! Product Quantization (Jégou, Douze & Schmid, 2011).
-//!
-//! Splits each `dim`-vector into `m` contiguous subvectors and learns a
-//! 256-centroid codebook per subspace via Lloyd's k-means, so a vector
-//! compresses to `m` bytes (one code per subspace). Search uses Asymmetric
-//! Distance Computation (ADC): the query stays full-precision and its distance
-//! to every centroid is precomputed into a lookup table, so scoring a code is
-//! `m` table lookups and adds.
 
 use crate::distance::Metric;
 use rand::seq::SliceRandom;
@@ -74,9 +67,8 @@ impl ProductQuantizer {
         codes
     }
 
-    /// Builds the ADC lookup table for a query: `table[s*K + c]` = squared L2
-    /// (or negative inner product) between the query's s-th subvector and
-    /// centroid `c` of subspace `s`.
+    /// Builds the ADC lookup table for a query: `table[s*K + c]` = squared L2 (or negative inner product)
+    /// between the query's s-th subvector and centroid `c` of subspace `s`.
     pub fn adc_table(&self, query: &[f32]) -> Vec<f32> {
         let mut table = vec![0.0f32; self.m * K];
         for s in 0..self.m {

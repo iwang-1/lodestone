@@ -20,12 +20,7 @@ jobs:
       - name: Test
         run: cargo test --release
 
-      # Retracted-claim guard. The README once said "a 30-48x speedup over the
-      # exact scan at 90%+ recall". It was arithmetically false: 47,335/971 =
-      # 48.7x, but that point measures 0.8996 recall, BELOW the 90% the sentence
-      # asserted. The true >=0.90 HNSW band is 9.2x-32.8x. The claim had already
-      # syndicated to two other surfaces before anyone checked the arithmetic,
-      # which is why this is a gate and not a note.
+      # Retracted-claim guard. The readme once said "a 30-48x speedup over the exact scan at 90%+ recall".
       - name: Retracted claims must not return
         run: |
           if grep -rniE '3[[:space:]]*0[[:space:]]*[-–—][[:space:]]*4[[:space:]]*8[[:space:]]*[x×]|30[[:space:]]*to[[:space:]]*48[[:space:]]*[x×]|31,?700' \

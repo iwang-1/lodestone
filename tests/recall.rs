@@ -1,6 +1,5 @@
-//! Recall sanity: on a small seeded clustered corpus, HNSW at a generous ef
-//! and IVF-PQ at high nprobe must both recover most of the exact top-k. This
-//! guards against index regressions without asserting host-specific speed.
+//! Recall sanity: on a small seeded clustered corpus, HNSW at a generous ef and ivf-pq at high nprobe must
+//! both recover most of the exact top-k.
 
 use lodestone::dataset;
 use lodestone::eval::recall_at_k;

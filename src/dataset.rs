@@ -1,9 +1,4 @@
 //! Reproducible synthetic corpora for benchmarking without external downloads.
-//!
-//! `clustered` draws vectors from a mixture of Gaussians, which mimics the
-//! cluster structure of real embedding spaces far better than uniform noise —
-//! and is exactly the regime where the HNSW neighbor-selection heuristic
-//! matters. Everything is seeded, so a benchmark run is byte-reproducible.
 
 use rand::Rng;
 use rand::SeedableRng;
@@ -23,9 +18,8 @@ impl Corpus {
     }
 }
 
-/// Generates `n` vectors from `n_clusters` isotropic Gaussians with unit-ish
-/// separation, then a set of `n_queries` held-out query vectors from the same
-/// distribution. Returns `(corpus, queries)`.
+/// Generates `n` vectors from `n_clusters` isotropic Gaussians with unit-ish separation, then a set of
+/// `n_queries` held-out query vectors from the same distribution.
 pub fn clustered(
     dim: usize,
     n: usize,
