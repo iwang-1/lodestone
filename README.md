@@ -182,6 +182,15 @@ let hits: Vec<(u32, f32)> = index.search(&query, 10, 64);
 
 ## Correctness evidence
 
+To run the two regression targets independently:
+
+```sh
+cargo test --locked --release --test recall
+cargo test --locked --release --test differential
+```
+
+Use the first when changing index traversal or re-ranking. Use the second when changing distance kernels, on an AVX-512-capable host to exercise that hardware path.
+
 - **Differential SIMD test** ([`tests/differential.rs`](tests/differential.rs)):
   for both metrics, the AVX-512 kernels agree with the scalar reference over 200
   random vector pairs at each of 13 dimensions chosen to straddle the 16-lane
