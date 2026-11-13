@@ -62,6 +62,29 @@ fn main() {
         "hnsw build: {build_secs:.1}s for {n} vectors (backend={})",
         hnsw.backend_name()
     );
+    {
+        // Persistence: save, reload, and confirm the reloaded index answers identically.
+        let path =
+            std::env::temp_dir().join(format!("lodestone-bench-{}.hnsw", std::process::id()));
+        let t = Instant::now();
+        hnsw.save(&path).expect("save index");
+        let save_secs = t.elapsed().as_secs_f64();
+        let bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        let t = Instant::now();
+        let loaded = Hnsw::load(&path).expect("load index");
+        let load_secs = t.elapsed().as_secs_f64();
+        let same = (0..queries.n)
+            .all(|q| hnsw.search(queries.get(q), k, 64) == loaded.search(queries.get(q), k, 64));
+        assert!(same, "reloaded index answered differently");
+        let _ = std::fs::remove_file(&path);
+        eprintln!(
+            "hnsw persistence: save {:.0} ms, load {:.0} ms ({:.1} MiB file); reload answers identical on all {} queries",
+            save_secs * 1e3,
+            load_secs * 1e3,
+            bytes as f64 / (1024.0 * 1024.0),
+            queries.n
+        );
+    }
     for &ef in &[16usize, 32, 64, 128, 256] {
         let t = Instant::now();
         let approx: Vec<Vec<(u32, f32)>> = (0..queries.n)

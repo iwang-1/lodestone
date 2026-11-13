@@ -366,3 +366,223 @@ impl Hnsw {
         found.into_iter().map(|c| (c.id, c.dist)).collect()
     }
 }
+
+// ---- Persistence ----
+
+const HNSW_MAGIC: &[u8; 8] = b"LDSTHNSW";
+const HNSW_FORMAT_VERSION: u32 = 1;
+
+fn metric_tag(m: Metric) -> u8 {
+    match m {
+        Metric::L2 => 0,
+        Metric::Ip => 1,
+    }
+}
+
+fn metric_from_tag(t: u8) -> crate::persist::Result<Metric> {
+    match t {
+        0 => Ok(Metric::L2),
+        1 => Ok(Metric::Ip),
+        other => Err(crate::persist::PersistError::Corrupt(format!(
+            "unknown metric tag {other}"
+        ))),
+    }
+}
+
+impl Hnsw {
+    /// Write the index to `path` (atomically: temp file, fsync, rename). The file holds the vectors,
+    /// the graph, and the construction parameters, so [`Hnsw::load`] restores an index that answers
+    /// every query identically and, given the same subsequent inserts, grows identically.
+    pub fn save(&self, path: impl AsRef<std::path::Path>) -> crate::persist::Result<()> {
+        let mut e = crate::persist::Encoder::new(HNSW_MAGIC, HNSW_FORMAT_VERSION);
+        e.u64(self.dim as u64);
+        e.u8(metric_tag(self.dist.metric()));
+        e.u64(self.params.m as u64);
+        e.u64(self.params.m0 as u64);
+        e.u64(self.params.ef_construction as u64);
+        e.f64(self.params.ml);
+        e.u64(self.params.seed);
+        e.f32s(&self.vectors);
+        e.u64(self.links.len() as u64);
+        for layer in &self.links {
+            e.u64(layer.len() as u64);
+            for neighbors in layer {
+                e.u32s(neighbors);
+            }
+        }
+        let levels: Vec<u32> = self.node_levels.iter().map(|&l| l as u32).collect();
+        e.u32s(&levels);
+        match self.entry_point {
+            Some(ep) => {
+                e.u8(1);
+                e.u32(ep);
+            }
+            None => e.u8(0),
+        }
+        e.u64(self.max_layer as u64);
+        e.write_atomic(path.as_ref())
+    }
+
+    /// Read an index written by [`Hnsw::save`]. Verifies the magic, format version, and checksum, then
+    /// every structural invariant (vector count, one link slot per node per layer, neighbor ids in
+    /// range, levels consistent with the layers, entry point at the top layer). The distance backend
+    /// is re-detected for the loading host, so a file saved on one CPU loads on another.
+    pub fn load(path: impl AsRef<std::path::Path>) -> crate::persist::Result<Hnsw> {
+        use crate::persist::{Decoder, PersistError};
+        let file = std::fs::read(path.as_ref())?;
+        let mut d = Decoder::open(&file, HNSW_MAGIC, HNSW_FORMAT_VERSION)?;
+        let corrupt = |m: String| PersistError::Corrupt(m);
+
+        let dim = d.u64()? as usize;
+        if dim == 0 {
+            return Err(corrupt("dimension 0".into()));
+        }
+        let metric = metric_from_tag(d.u8()?)?;
+        let params = HnswParams {
+            m: d.u64()? as usize,
+            m0: d.u64()? as usize,
+            ef_construction: d.u64()? as usize,
+            ml: d.f64()?,
+            seed: d.u64()?,
+        };
+        let vectors = d.f32s()?;
+        if vectors.len() % dim != 0 {
+            return Err(corrupt(format!(
+                "{} floats is not a multiple of dimension {dim}",
+                vectors.len()
+            )));
+        }
+        let n = vectors.len() / dim;
+        let n_layers = d.u64()? as usize;
+        if n_layers == 0 || n_layers > 64 {
+            return Err(corrupt(format!("{n_layers} layers")));
+        }
+        let mut links = Vec::with_capacity(n_layers);
+        for l in 0..n_layers {
+            let slots = d.u64()? as usize;
+            if slots != n {
+                return Err(corrupt(format!(
+                    "layer {l} has {slots} slots for {n} nodes"
+                )));
+            }
+            let mut layer = Vec::with_capacity(n);
+            for _ in 0..n {
+                let neighbors = d.u32s()?;
+                if let Some(&bad) = neighbors.iter().find(|&&id| id as usize >= n) {
+                    return Err(corrupt(format!("layer {l} links to node {bad} of {n}")));
+                }
+                layer.push(neighbors);
+            }
+            links.push(layer);
+        }
+        let node_levels: Vec<usize> = d.u32s()?.into_iter().map(|l| l as usize).collect();
+        if node_levels.len() != n {
+            return Err(corrupt(format!(
+                "{} levels for {n} nodes",
+                node_levels.len()
+            )));
+        }
+        if let Some(&bad) = node_levels.iter().find(|&&l| l >= n_layers) {
+            return Err(corrupt(format!("node level {bad} with {n_layers} layers")));
+        }
+        let entry_point = match d.u8()? {
+            0 => None,
+            1 => Some(d.u32()?),
+            other => return Err(corrupt(format!("entry-point tag {other}"))),
+        };
+        let max_layer = d.u64()? as usize;
+        d.finish()?;
+        match entry_point {
+            None if n != 0 => return Err(corrupt("no entry point for a non-empty index".into())),
+            Some(ep) if ep as usize >= n => {
+                return Err(corrupt(format!("entry point {ep} of {n} nodes")))
+            }
+            Some(ep) if node_levels[ep as usize] != max_layer => {
+                return Err(corrupt("entry point is not on the top layer".into()))
+            }
+            _ => {}
+        }
+        if max_layer >= n_layers.max(1) {
+            return Err(corrupt(format!("max layer {max_layer} of {n_layers}")));
+        }
+
+        // Construction draws exactly one level per insert, so replaying `n` draws puts the generator
+        // where it was when the index was saved.
+        let mut index = Hnsw::new(dim, metric, params);
+        for _ in 0..n {
+            index.random_level();
+        }
+        index.vectors = vectors;
+        index.links = links;
+        index.node_levels = node_levels;
+        index.entry_point = entry_point;
+        index.max_layer = max_layer;
+        Ok(index)
+    }
+}
+
+#[cfg(test)]
+mod persist_tests {
+    use super::*;
+    use crate::persist::PersistError;
+
+    fn small_index() -> Hnsw {
+        let mut idx = Hnsw::new(4, Metric::L2, HnswParams::new(4));
+        for i in 0..64 {
+            let x = i as f32;
+            idx.insert(&[x, x * 0.5, -x, 1.0]);
+        }
+        idx
+    }
+
+    /// Save a deliberately inconsistent index (checksum valid, structure not) and expect `Corrupt`.
+    fn assert_rejected(idx: &Hnsw, name: &str) {
+        let path =
+            std::env::temp_dir().join(format!("lodestone-unit-{}-{name}.hnsw", std::process::id()));
+        idx.save(&path).unwrap();
+        match Hnsw::load(&path) {
+            Err(PersistError::Corrupt(_)) => {}
+            other => panic!("{name}: expected Corrupt, got {:?}", other.map(|i| i.len())),
+        }
+    }
+
+    #[test]
+    fn neighbor_out_of_range_is_rejected() {
+        let mut idx = small_index();
+        idx.links[0][3].push(10_000);
+        assert_rejected(&idx, "neighbor");
+    }
+
+    #[test]
+    fn layer_with_wrong_slot_count_is_rejected() {
+        let mut idx = small_index();
+        idx.links[0].pop();
+        assert_rejected(&idx, "slots");
+    }
+
+    #[test]
+    fn entry_point_off_the_top_layer_is_rejected() {
+        let mut idx = small_index();
+        let ep = idx.entry_point.unwrap() as usize;
+        let other = (0..idx.len())
+            .find(|&i| idx.node_levels[i] < idx.max_layer)
+            .unwrap();
+        assert_ne!(other, ep);
+        idx.entry_point = Some(other as u32);
+        assert_rejected(&idx, "entry");
+    }
+
+    #[test]
+    fn level_above_the_layer_count_is_rejected() {
+        let mut idx = small_index();
+        idx.node_levels[5] = idx.links.len();
+        assert_rejected(&idx, "level");
+    }
+
+    #[test]
+    fn vectors_not_a_multiple_of_dim_are_rejected() {
+        let mut idx = small_index();
+        idx.vectors.push(0.0);
+        assert_rejected(&idx, "dim");
+    }
+}
