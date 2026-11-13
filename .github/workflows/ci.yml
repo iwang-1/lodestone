@@ -7,7 +7,12 @@ on:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # ubuntu-latest is x86_64 (scalar or avx-512 depending on the runner CPU);
+    # macos-latest is Apple Silicon, which exercises the NEON kernels.
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -19,6 +24,8 @@ jobs:
         run: cargo clippy --all-targets -- -D warnings
       - name: Test
         run: cargo test --release
+      - name: Kernel microbenchmark (smoke run)
+        run: cargo run --release --bin lodestone-kernels
 
       # Retracted-claim guard. The readme once said "a 30-48x speedup over the exact scan at 90%+ recall".
       - name: Retracted claims must not return

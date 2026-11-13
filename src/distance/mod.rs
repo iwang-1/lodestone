@@ -1,8 +1,11 @@
-//! Distance kernels with runtime SIMD dispatch. Every metric ships a portable scalar reference and, on
-//! `x86_64`, a hand-written avx-512 path selected once at construction via `is_x86_feature_detected!`.
+//! Distance kernels with runtime SIMD dispatch. Every metric ships a portable scalar reference plus a
+//! hand-written SIMD path, selected once at construction: avx-512 on `x86_64` (via
+//! `is_x86_feature_detected!`) and NEON on `aarch64` (via `is_aarch64_feature_detected!`).
 
 #[cfg(target_arch = "x86_64")]
 mod avx512;
+#[cfg(target_arch = "aarch64")]
+mod neon;
 
 /// Distance/similarity metric over `f32` vectors of a fixed dimension.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -26,6 +29,8 @@ enum Backend {
     Scalar,
     #[cfg(target_arch = "x86_64")]
     Avx512,
+    #[cfg(target_arch = "aarch64")]
+    Neon,
 }
 
 impl DistanceFn {
@@ -53,6 +58,8 @@ impl DistanceFn {
             Backend::Scalar => "scalar",
             #[cfg(target_arch = "x86_64")]
             Backend::Avx512 => "avx512",
+            #[cfg(target_arch = "aarch64")]
+            Backend::Neon => "neon",
         }
     }
 
@@ -68,15 +75,30 @@ impl DistanceFn {
                 // SAFETY: backend is only set to Avx512 after runtime detection.
                 unsafe { avx512::distance(self.metric, a, b) }
             }
+            #[cfg(target_arch = "aarch64")]
+            Backend::Neon => {
+                // SAFETY: backend is only set to Neon after runtime detection.
+                unsafe { neon::distance(self.metric, a, b) }
+            }
         }
     }
 }
 
 fn detect_backend() -> Backend {
+    // Benchmarking escape hatch: compare the SIMD path against scalar on the same host.
+    if std::env::var_os("LODESTONE_FORCE_SCALAR").is_some_and(|v| v == "1") {
+        return Backend::Scalar;
+    }
     #[cfg(target_arch = "x86_64")]
     {
         if is_x86_feature_detected!("avx512f") {
             return Backend::Avx512;
+        }
+    }
+    #[cfg(target_arch = "aarch64")]
+    {
+        if std::arch::is_aarch64_feature_detected!("neon") {
+            return Backend::Neon;
         }
     }
     Backend::Scalar

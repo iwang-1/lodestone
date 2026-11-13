@@ -1,10 +1,25 @@
-//! Differential test: the avx-512 distance kernels must agree with the portable scalar reference across
-//! many random vectors and every dimension near a 16-lane boundary (tail-handling is the classic SIMD bug).
+//! Differential test: the host's SIMD distance kernels (avx-512 on `x86_64`, NEON on `aarch64`) must agree
+//! with the portable scalar reference across many random vectors and every dimension near a 4- and
+//! 16-lane boundary (tail-handling is the classic SIMD bug).
 
 use lodestone::distance::{DistanceFn, Metric};
 use rand::Rng;
 use rand::SeedableRng;
 use rand_pcg::Pcg64;
+
+const DIMS: [usize; 17] = [
+    1, 2, 3, 4, 5, 7, 15, 16, 17, 19, 31, 33, 64, 96, 127, 128, 768,
+];
+
+/// The SIMD backend under test must be the host's, not the scalar fallback, on the architectures that
+/// have one; otherwise this file would only compare scalar against itself.
+#[test]
+fn simd_backend_selected_on_supported_arch() {
+    let name = DistanceFn::new(Metric::L2).backend_name();
+    if cfg!(target_arch = "aarch64") {
+        assert_eq!(name, "neon");
+    }
+}
 
 /// Returns the worst error under a combined absolute+relative tolerance.
 fn max_err(metric: Metric, dim: usize, trials: usize, rng: &mut Pcg64) -> f32 {
@@ -28,10 +43,10 @@ fn max_err(metric: Metric, dim: usize, trials: usize, rng: &mut Pcg64) -> f32 {
 }
 
 #[test]
-fn avx512_matches_scalar_l2_all_dims() {
+fn simd_matches_scalar_l2_all_dims() {
     let mut rng = Pcg64::seed_from_u64(0xD1FF);
-    // Sweep dims straddling the 16-lane boundary to exercise the masked tail.
-    for dim in [1usize, 7, 15, 16, 17, 31, 33, 64, 96, 127, 128, 256, 768] {
+    // Sweep dims straddling the 4- and 16-lane boundaries to exercise every tail path.
+    for dim in DIMS {
         let err = max_err(Metric::L2, dim, 200, &mut rng);
         assert!(
             err <= 1.0,
@@ -41,9 +56,9 @@ fn avx512_matches_scalar_l2_all_dims() {
 }
 
 #[test]
-fn avx512_matches_scalar_ip_all_dims() {
+fn simd_matches_scalar_ip_all_dims() {
     let mut rng = Pcg64::seed_from_u64(0xBEEF);
-    for dim in [1usize, 7, 15, 16, 17, 31, 33, 64, 96, 127, 128, 256, 768] {
+    for dim in DIMS {
         let err = max_err(Metric::Ip, dim, 200, &mut rng);
         assert!(
             err <= 1.0,

@@ -1,0 +1,25 @@
+# host: Apple M3 Max (14 cores: 10 performance + 4 efficiency), macOS 27, rustc 1.94.1, RUSTFLAGS=-C target-cpu=native
+# command: cargo run --release --bin lodestone-bench
+
+lodestone-bench: n=50000 dim=128 queries=1000 k=10 backend=neon
+# exact brute-force oracle: 1198 QPS (parallel, full corpus scan)
+
+## HNSW (m=16)  recall@10 vs QPS
+| ef | recall@10 | QPS (1 core) |
+|---:|---:|---:|
+hnsw build: 8.9s for 50000 vectors (backend=neon)
+| 16 | 0.8996 | 35156 |
+| 32 | 0.9759 | 25078 |
+| 64 | 0.9964 | 16188 |
+| 128 | 1.0000 | 11235 |
+| 256 | 1.0000 | 7925 |
+
+## IVF-PQ (nlist=256, m=32, 16x compression)  recall@10 vs QPS
+| nprobe | recall@10 | QPS (1 core) |
+|---:|---:|---:|
+ivfpq compression ratio: 16.0x
+| 1 | 0.4850 | 17032 |
+| 4 | 0.9409 | 9927 |
+| 8 | 0.9748 | 6934 |
+| 16 | 0.9747 | 3949 |
+| 32 | 0.9747 | 2098 |

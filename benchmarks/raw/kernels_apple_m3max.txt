@@ -1,0 +1,15 @@
+# host: Apple M3 Max (14 cores: 10 performance + 4 efficiency), macOS 27, rustc 1.94.1, RUSTFLAGS=-C target-cpu=native
+# command: cargo run --release --bin lodestone-kernels
+
+backend: neon
+
+| metric | dim | scalar (ns/call) | neon (ns/call) | speedup |
+|---|---:|---:|---:|---:|
+| L2 | 128 | 50.8 | 7.5 | 6.8x |
+| L2 | 384 | 203.3 | 21.5 | 9.4x |
+| L2 | 768 | 495.1 | 47.6 | 10.4x |
+| L2 | 1536 | 1083.4 | 94.5 | 11.5x |
+| IP | 128 | 43.5 | 7.3 | 6.0x |
+| IP | 384 | 185.0 | 20.2 | 9.2x |
+| IP | 768 | 476.8 | 50.0 | 9.5x |
+| IP | 1536 | 1056.3 | 90.2 | 11.7x |

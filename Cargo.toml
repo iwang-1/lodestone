@@ -2,6 +2,7 @@
 name = "lodestone"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.87"
 description = "A from-scratch vector search engine in Rust: HNSW + IVF-PQ indexes with hand-written AVX-512 distance kernels, benchmarked against a brute-force oracle."
 license = "MIT"
 repository = "https://github.com/iwang-1/lodestone"
@@ -18,6 +19,10 @@ approx = "0.5"
 [[bin]]
 name = "lodestone-bench"
 path = "src/bin/bench.rs"
+
+[[bin]]
+name = "lodestone-kernels"
+path = "src/bin/kernels.rs"
 
 [features]
 default = []
