@@ -18,6 +18,51 @@ pub struct ProductQuantizer {
 const K: usize = 256; // centroids per subspace -> one u8 code each
 
 impl ProductQuantizer {
+    /// Append the quantizer (shape, metric, codebooks) to an index file body.
+    pub(crate) fn encode_into(&self, e: &mut crate::persist::Encoder) {
+        e.u64(self.dim as u64);
+        e.u64(self.m as u64);
+        e.u8(crate::persist::metric_tag(self.metric));
+        for book in &self.codebooks {
+            e.f32s(book);
+        }
+    }
+
+    /// Read a quantizer written by `encode_into`, checking that its shape is self-consistent.
+    pub(crate) fn decode_from(
+        d: &mut crate::persist::Decoder<'_>,
+    ) -> crate::persist::Result<ProductQuantizer> {
+        use crate::persist::PersistError::Corrupt;
+        let dim = d.u64()? as usize;
+        let m = d.u64()? as usize;
+        if m == 0 || dim == 0 || !dim.is_multiple_of(m) {
+            return Err(Corrupt(format!("PQ shape dim={dim} m={m}")));
+        }
+        let metric = crate::persist::metric_from_tag(d.u8()?)?;
+        let sub_dim = dim / m;
+        let mut codebooks = Vec::with_capacity(m);
+        for s in 0..m {
+            let book = d.f32s()?;
+            if book.len() != K * sub_dim {
+                return Err(Corrupt(format!(
+                    "codebook {s} has {} floats, want {}",
+                    book.len(),
+                    K * sub_dim
+                )));
+            }
+            codebooks.push(book);
+        }
+        Ok(ProductQuantizer {
+            dim,
+            m,
+            sub_dim,
+            codebooks,
+            metric,
+        })
+    }
+}
+
+impl ProductQuantizer {
     /// `m` must divide `dim`.
     pub fn train(dim: usize, m: usize, training: &[f32], metric: Metric, seed: u64) -> Self {
         assert!(dim.is_multiple_of(m), "m must divide dim");
@@ -44,6 +89,11 @@ impl ProductQuantizer {
             codebooks,
             metric,
         }
+    }
+
+    /// Vector dimension the quantizer encodes.
+    pub fn dim(&self) -> usize {
+        self.dim
     }
 
     pub fn m(&self) -> usize {

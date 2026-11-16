@@ -1,10 +1,13 @@
 # host: Apple M3 Max (14 cores), macOS 27, rustc 1.94.1, RUSTFLAGS=-C target-cpu=native, internal SSD
 # command: cargo run --release --bin lodestone-bench   (3 runs; stderr lines for build and persistence)
-# 50,000 x 128-d corpus, HNSW m=16; save includes fsync + atomic rename
+# 50,000 x 128-d corpus; HNSW m=16; IVF-PQ nlist=256 m=32, codebooks trained on 20,000 vectors; save includes fsync + atomic rename
 
-hnsw build: 8.0s for 50000 vectors (backend=neon)
-hnsw persistence: save 108 ms, load 86 ms (32.4 MiB file); reload answers identical on all 1000 queries
-hnsw build: 8.9s for 50000 vectors (backend=neon)
-hnsw persistence: save 107 ms, load 88 ms (32.4 MiB file); reload answers identical on all 1000 queries
-hnsw build: 8.2s for 50000 vectors (backend=neon)
-hnsw persistence: save 105 ms, load 86 ms (32.4 MiB file); reload answers identical on all 1000 queries
+hnsw build: 9.4s for 50000 vectors (backend=neon)
+hnsw persistence: save 108 ms, load 89 ms (32.4 MiB file); reload answers identical on all 1000 queries
+ivfpq build (train + add): 4.0s; persistence: save 91 ms, load 71 ms (26.4 MiB file); reload answers identical on all 1000 queries
+hnsw build: 9.4s for 50000 vectors (backend=neon)
+hnsw persistence: save 112 ms, load 92 ms (32.4 MiB file); reload answers identical on all 1000 queries
+ivfpq build (train + add): 3.9s; persistence: save 92 ms, load 75 ms (26.4 MiB file); reload answers identical on all 1000 queries
+hnsw build: 9.4s for 50000 vectors (backend=neon)
+hnsw persistence: save 112 ms, load 93 ms (32.4 MiB file); reload answers identical on all 1000 queries
+ivfpq build (train + add): 3.9s; persistence: save 100 ms, load 71 ms (26.4 MiB file); reload answers identical on all 1000 queries

@@ -372,22 +372,7 @@ impl Hnsw {
 const HNSW_MAGIC: &[u8; 8] = b"LDSTHNSW";
 const HNSW_FORMAT_VERSION: u32 = 1;
 
-fn metric_tag(m: Metric) -> u8 {
-    match m {
-        Metric::L2 => 0,
-        Metric::Ip => 1,
-    }
-}
-
-fn metric_from_tag(t: u8) -> crate::persist::Result<Metric> {
-    match t {
-        0 => Ok(Metric::L2),
-        1 => Ok(Metric::Ip),
-        other => Err(crate::persist::PersistError::Corrupt(format!(
-            "unknown metric tag {other}"
-        ))),
-    }
-}
+use crate::persist::{metric_from_tag, metric_tag};
 
 impl Hnsw {
     /// Write the index to `path` (atomically: temp file, fsync, rename). The file holds the vectors,

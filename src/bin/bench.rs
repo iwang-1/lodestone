@@ -106,6 +106,7 @@ fn main() {
     println!("| nprobe | recall@{k} | QPS (1 core) |");
     println!("|---:|---:|---:|");
     let train_n = n.min(20_000);
+    let t_build = Instant::now();
     let ivf = {
         let mut ivf = IvfPq::train(dim, nlist, m, &corpus.data[..train_n * dim], metric, 0x1234);
         // Exact re-rank of a 32x-k ADC shortlist recovers the recall raw PQ
@@ -116,7 +117,31 @@ fn main() {
         }
         ivf
     };
+    let ivf_build_secs = t_build.elapsed().as_secs_f64();
     eprintln!("ivfpq compression ratio: {:.1}x", ivf.compression_ratio());
+    {
+        // Persistence: save, reload, and confirm the reloaded index answers identically.
+        let path =
+            std::env::temp_dir().join(format!("lodestone-bench-{}.ivfpq", std::process::id()));
+        let t = Instant::now();
+        ivf.save(&path).expect("save ivfpq");
+        let save_secs = t.elapsed().as_secs_f64();
+        let bytes = std::fs::metadata(&path).map(|m| m.len()).unwrap_or(0);
+        let t = Instant::now();
+        let loaded = IvfPq::load(&path).expect("load ivfpq");
+        let load_secs = t.elapsed().as_secs_f64();
+        let same = (0..queries.n)
+            .all(|q| ivf.search(queries.get(q), k, 8) == loaded.search(queries.get(q), k, 8));
+        assert!(same, "reloaded IVF-PQ index answered differently");
+        let _ = std::fs::remove_file(&path);
+        eprintln!(
+            "ivfpq build (train + add): {ivf_build_secs:.1}s; persistence: save {:.0} ms, load {:.0} ms ({:.1} MiB file); reload answers identical on all {} queries",
+            save_secs * 1e3,
+            load_secs * 1e3,
+            bytes as f64 / (1024.0 * 1024.0),
+            queries.n
+        );
+    }
     for &nprobe in &[1usize, 4, 8, 16, 32] {
         let t = Instant::now();
         let approx: Vec<Vec<(u32, f32)>> = (0..queries.n)

@@ -121,3 +121,66 @@ fn damaged_files_are_rejected_not_misread() {
         Err(PersistError::Io(_))
     ));
 }
+
+// ---- IVF-PQ ----
+
+use lodestone::index::IvfPq;
+
+fn build_ivfpq(metric: Metric) -> (IvfPq, dataset::Corpus) {
+    let dim = 32;
+    let (corpus, queries) = dataset::clustered(dim, 3_000, 16, 100, 0x1F1F);
+    let mut idx = IvfPq::train(dim, 32, 8, &corpus.data[..2_000 * dim], metric, 0x77);
+    idx.set_rerank_factor(8);
+    for i in 0..corpus.n {
+        idx.add(i as u32, corpus.get(i));
+    }
+    (idx, queries)
+}
+
+#[test]
+fn ivfpq_roundtrip_answers_identically() {
+    for metric in [Metric::L2, Metric::Ip] {
+        let (idx, queries) = build_ivfpq(metric);
+        let path = tmp_path(&format!("ivfpq-{metric:?}.ivfpq"));
+        idx.save(&path).unwrap();
+        let loaded = IvfPq::load(&path).unwrap();
+        assert_eq!(loaded.len(), idx.len());
+        assert_eq!(loaded.compression_ratio(), idx.compression_ratio());
+        for nprobe in [1, 4, 16] {
+            for q in 0..queries.n {
+                let a: Vec<(u32, u32)> = idx
+                    .search(queries.get(q), 10, nprobe)
+                    .iter()
+                    .map(|&(id, d)| (id, d.to_bits()))
+                    .collect();
+                let b: Vec<(u32, u32)> = loaded
+                    .search(queries.get(q), 10, nprobe)
+                    .iter()
+                    .map(|&(id, d)| (id, d.to_bits()))
+                    .collect();
+                assert_eq!(a, b, "{metric:?} query {q} nprobe={nprobe}");
+            }
+        }
+    }
+}
+
+#[test]
+fn ivfpq_damaged_files_are_rejected() {
+    let (idx, _) = build_ivfpq(Metric::L2);
+    let path = tmp_path("ivfpq-damage.ivfpq");
+    idx.save(&path).unwrap();
+    let good = std::fs::read(&path).unwrap();
+    let bad = tmp_path("ivfpq-damage-bad.ivfpq");
+    for pos in (0..good.len()).step_by((good.len() / 83).max(1)) {
+        let mut bytes = good.clone();
+        bytes[pos] ^= 0x01;
+        std::fs::write(&bad, &bytes).unwrap();
+        assert!(IvfPq::load(&bad).is_err(), "flip at {pos} loaded");
+    }
+    std::fs::write(&bad, &good[..good.len() - 3]).unwrap();
+    assert!(IvfPq::load(&bad).is_err());
+    // An HNSW file is not an IVF-PQ file.
+    let (hnsw, _) = build(50, 8, Metric::L2);
+    hnsw.save(&bad).unwrap();
+    assert!(matches!(IvfPq::load(&bad), Err(PersistError::BadMagic)));
+}

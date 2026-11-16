@@ -51,6 +51,23 @@ impl From<io::Error> for PersistError {
 
 pub type Result<T> = std::result::Result<T, PersistError>;
 
+/// The on-disk tag for a distance metric.
+pub(crate) fn metric_tag(m: crate::Metric) -> u8 {
+    match m {
+        crate::Metric::L2 => 0,
+        crate::Metric::Ip => 1,
+    }
+}
+
+/// The distance metric for an on-disk tag.
+pub(crate) fn metric_from_tag(t: u8) -> Result<crate::Metric> {
+    match t {
+        0 => Ok(crate::Metric::L2),
+        1 => Ok(crate::Metric::Ip),
+        other => Err(PersistError::Corrupt(format!("unknown metric tag {other}"))),
+    }
+}
+
 /// CRC-32 (IEEE 802.3, reflected, polynomial 0xEDB88320), table-driven.
 pub fn crc32(data: &[u8]) -> u32 {
     const TABLE: [u32; 256] = {
