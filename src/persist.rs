@@ -234,16 +234,20 @@ impl<'a> Decoder<'a> {
         let n = self.len(4)?;
         let raw = self.take(n * 4)?;
         Ok(raw
-            .chunks_exact(4)
-            .map(|c| f32::from_le_bytes(c.try_into().expect("4")))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| f32::from_le_bytes(*c))
             .collect())
     }
     pub fn u32s(&mut self) -> Result<Vec<u32>> {
         let n = self.len(4)?;
         let raw = self.take(n * 4)?;
         Ok(raw
-            .chunks_exact(4)
-            .map(|c| u32::from_le_bytes(c.try_into().expect("4")))
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .map(|c| u32::from_le_bytes(*c))
             .collect())
     }
     pub fn bytes(&mut self) -> Result<Vec<u8>> {
