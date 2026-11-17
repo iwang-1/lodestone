@@ -1,6 +1,6 @@
 # lodestone
 
-[![CI](https://github.com/iwang-1/lodestone/actions/workflows/ci.yml/badge.svg)](https://github.com/iwang-1/lodestone/actions/workflows/ci.yml)
+[![Rust](https://img.shields.io/badge/rust-stable-B7410E?logo=rust&logoColor=white)](https://www.rust-lang.org/)
 [![clippy: -D warnings](https://img.shields.io/badge/clippy-D_warnings-brightgreen.svg)](.github/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
