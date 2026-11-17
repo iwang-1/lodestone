@@ -247,7 +247,7 @@ posting list, since search and re-ranking index the full-precision store by id.
 
 ## Quickstart
 
-Requirements: Rust 1.87 or newer (the committed runs used `rustc` 1.95.0 on the
+Requirements: Rust 1.89 or newer (the committed runs used `rustc` 1.95.0 on the
 Xeon and 1.94.1 on the M3 Max). The SIMD backend is auto-detected at runtime:
 AVX-512 on `x86_64`, NEON on `aarch64`. On an `x86_64` host without AVX-512 the
 scalar kernels are used and every test still passes — but the differential test
